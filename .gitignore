@@ -1,0 +1,7 @@
+.idea
+*.mp4
+*.jpg
+*.png
+*.tif
+.DS_STORE
+*/books/
