@@ -1,3 +1,13 @@
+"""
+
+Gianluca Scarpellini - lab2 - Visual Information processing and Management
+
+g.scarpellini1[at]disco.unimib.it
+
+Pyramidal blending: Blend 2 images using laplacian pyramids
+"""
+
+
 import cv2
 import numpy as np
 import argparse
