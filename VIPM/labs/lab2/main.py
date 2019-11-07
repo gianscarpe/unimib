@@ -7,7 +7,6 @@ g.scarpellini1[at]disco.unimib.it
 Pyramidal blending: Blend 2 images using laplacian pyramids
 """
 
-
 import cv2
 import numpy as np
 import argparse
@@ -18,6 +17,7 @@ parser.add_argument('--img1', type=str, help='First image to blend')
 parser.add_argument('--img2', type=str, help='Second image to blend')
 parser.add_argument('--gaussian_filter', type=int, help='Gaussian filter', default=15)
 parser.add_argument('--pyramid_levels', type=int, help='Gaussian filter', default=3)
+parser.add_argument('--mask_window_size', type=int, help='Mask window size', default=30)
 parser.add_argument('--mask', type=str, help='Mask for blending', default='default')
 
 args = parser.parse_args()
@@ -25,6 +25,7 @@ args = parser.parse_args()
 img1_path = args.img1
 img2_path = args.img2
 mask_path = args.mask
+w_size = args.mask_window_size
 
 GAUSSIAN_FILTER_SIZE = args.gaussian_filter
 N_LAYERS = args.pyramid_levels
@@ -101,7 +102,7 @@ def collapse_pyramid(pyramid):
 
         result = cv2.resize(result, next_level_dim) + next_level
 
-    return result
+    return result.astype('float32')
 
 
 def show_pyramid(pyramid):
@@ -114,7 +115,7 @@ if __name__ == '__main__':
     im1 = cv2.imread(img1_path) / 255.
     im2 = cv2.imread(img2_path) / 255.
     if mask_path == 'default':
-        mask = get_default_mask(im1.shape, 30)
+        mask = get_default_mask(im1.shape, w_size)
     else:
         mask = cv2.imread(mask_path) / 255.
 
@@ -126,16 +127,8 @@ if __name__ == '__main__':
 
     combined = combine_pyramids(left_laplacian_pyramid, right_laplacian_pyramid, mask_pyramid)
 
-    show_pyramid(combined)
     result = collapse_pyramid(combined)
 
-    cv2.imshow('Original Left', im1)
-    cv2.waitKey()
-
-    cv2.imshow('Original Right', im2)
-    cv2.waitKey()
-
-    cv2.imshow('Result', result)
-    cv2.waitKey()
-
-    cv2.destroyAllWindows()
+    out_to_show = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
+    plt.imshow(out_to_show)
+    plt.show()
