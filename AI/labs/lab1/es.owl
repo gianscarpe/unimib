@@ -1,0 +1,222 @@
+<?xml version="1.0"?>
+<rdf:RDF xmlns="http://localhost:8080/mine#"
+     xml:base="http://localhost:8080/mine"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:xml="http://www.w3.org/XML/1998/namespace"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+     xmlns:mine="http://localhost:8080/mine#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
+    <owl:Ontology rdf:about="http://localhost:8080/mine">
+        <owl:imports rdf:resource="http://www.w3.org/TR/2014/REC-rdf-schema-20140225/"/>
+    </owl:Ontology>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Object Properties
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://localhost:8080/mine#capitalOf -->
+
+    <owl:ObjectProperty rdf:about="http://localhost:8080/mine#capitalOf">
+        <rdfs:subPropertyOf rdf:resource="http://localhost:8080/mine#isIn"/>
+        <rdfs:domain rdf:resource="http://localhost:8080/mine#City"/>
+        <rdfs:range rdf:resource="http://localhost:8080/mine#Country"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://localhost:8080/mine#isContained -->
+
+    <owl:ObjectProperty rdf:about="http://localhost:8080/mine#isContained">
+        <rdfs:subPropertyOf rdf:resource="http://localhost:8080/mine#placeRelationships"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#TransitiveProperty"/>
+        <rdfs:domain rdf:resource="http://localhost:8080/mine#Place"/>
+        <rdfs:range rdf:resource="http://localhost:8080/mine#Place"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://localhost:8080/mine#isIn -->
+
+    <owl:ObjectProperty rdf:about="http://localhost:8080/mine#isIn">
+        <rdfs:subPropertyOf rdf:resource="http://localhost:8080/mine#isContained"/>
+        <rdfs:domain rdf:resource="http://localhost:8080/mine#City"/>
+        <rdfs:range rdf:resource="http://localhost:8080/mine#Country"/>
+    </owl:ObjectProperty>
+    
+
+
+    <!-- http://localhost:8080/mine#placeRelationships -->
+
+    <owl:ObjectProperty rdf:about="http://localhost:8080/mine#placeRelationships"/>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Classes
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://localhost:8080/mine#AmericanCountry -->
+
+    <owl:Class rdf:about="http://localhost:8080/mine#AmericanCountry">
+        <rdfs:subClassOf rdf:resource="http://localhost:8080/mine#Country"/>
+    </owl:Class>
+    
+
+
+    <!-- http://localhost:8080/mine#AsianCountry -->
+
+    <owl:Class rdf:about="http://localhost:8080/mine#AsianCountry">
+        <rdfs:subClassOf rdf:resource="http://localhost:8080/mine#Country"/>
+    </owl:Class>
+    
+
+
+    <!-- http://localhost:8080/mine#City -->
+
+    <owl:Class rdf:about="http://localhost:8080/mine#City">
+        <rdfs:subClassOf rdf:resource="http://localhost:8080/mine#Place"/>
+    </owl:Class>
+    
+
+
+    <!-- http://localhost:8080/mine#Continent -->
+
+    <owl:Class rdf:about="http://localhost:8080/mine#Continent">
+        <rdfs:subClassOf rdf:resource="http://localhost:8080/mine#Place"/>
+    </owl:Class>
+    
+
+
+    <!-- http://localhost:8080/mine#Country -->
+
+    <owl:Class rdf:about="http://localhost:8080/mine#Country">
+        <rdfs:subClassOf rdf:resource="http://localhost:8080/mine#Place"/>
+    </owl:Class>
+    
+
+
+    <!-- http://localhost:8080/mine#EuropeanCountry -->
+
+    <owl:Class rdf:about="http://localhost:8080/mine#EuropeanCountry">
+        <rdfs:subClassOf rdf:resource="http://localhost:8080/mine#Country"/>
+    </owl:Class>
+    
+
+
+    <!-- http://localhost:8080/mine#Place -->
+
+    <owl:Class rdf:about="http://localhost:8080/mine#Place"/>
+    
+
+
+    <!-- http://localhost:8080/mine#Region -->
+
+    <owl:Class rdf:about="http://localhost:8080/mine#Region">
+        <rdfs:subClassOf rdf:resource="http://localhost:8080/mine#Place"/>
+    </owl:Class>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Individuals
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    
+
+
+    <!-- http://localhost:8080/mine#Asia -->
+
+    <owl:NamedIndividual rdf:about="http://localhost:8080/mine#Asia">
+        <rdf:type rdf:resource="http://localhost:8080/mine#Continent"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://localhost:8080/mine#Bejing -->
+
+    <owl:NamedIndividual rdf:about="http://localhost:8080/mine#Bejing">
+        <rdf:type rdf:resource="http://localhost:8080/mine#City"/>
+        <capitalOf rdf:resource="http://localhost:8080/mine#China"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://localhost:8080/mine#China -->
+
+    <owl:NamedIndividual rdf:about="http://localhost:8080/mine#China">
+        <rdf:type rdf:resource="http://localhost:8080/mine#AsianCountry"/>
+        <isContained rdf:resource="http://localhost:8080/mine#Asia"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://localhost:8080/mine#Europe -->
+
+    <owl:NamedIndividual rdf:about="http://localhost:8080/mine#Europe">
+        <rdf:type rdf:resource="http://localhost:8080/mine#Continent"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://localhost:8080/mine#Italy -->
+
+    <owl:NamedIndividual rdf:about="http://localhost:8080/mine#Italy">
+        <rdf:type rdf:resource="http://localhost:8080/mine#Country"/>
+        <isContained rdf:resource="http://localhost:8080/mine#Europe"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://localhost:8080/mine#Rome -->
+
+    <owl:NamedIndividual rdf:about="http://localhost:8080/mine#Rome">
+        <rdf:type rdf:resource="http://localhost:8080/mine#City"/>
+        <capitalOf rdf:resource="http://localhost:8080/mine#Italy"/>
+    </owl:NamedIndividual>
+    
+
+
+    <!-- http://localhost:8080/mine#USA -->
+
+    <owl:NamedIndividual rdf:about="http://localhost:8080/mine#USA"/>
+    
+
+
+    <!-- 
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Annotations
+    //
+    ///////////////////////////////////////////////////////////////////////////////////////
+     -->
+
+    <rdf:Description rdf:about="http://www.w3.org/2002/07/owl#Thing">
+        <rdfs:label rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+    </rdf:Description>
+</rdf:RDF>
+
+
+
+<!-- Generated by the OWL API (version 4.5.9.2019-02-01T07:24:44Z) https://github.com/owlcs/owlapi -->
+
