@@ -1,49 +1,57 @@
 import cv2
 from matplotlib import pyplot as plt
-
+import math
 import numpy as np
 
-eps = 0.000001
-eps1 = 0.0000001
+eps = np.finfo(float).eps
+coudble = 1 / math.log10(1 + 1)
 
 
 def get_scaling_factors(im):
-    R = im[:, :, 0]
-    G = im[:, :, 1]
-    B = im[:, :, 2]
+    R = im[:, :, 0] + eps
+    G = im[:, :, 1] + eps
+    B = im[:, :, 2] + eps
 
     den = R + G + B
     return (R / den), (G / den), (B / den)
 
-def get_wb_factors(im1, im2):
+
+def get_decoupled_ycbcr(im, scaling):
+    decoupled = cv2.cvtColor(im, cv2.COLOR_RGB2YCR_CB)
+    y = decoupled[:, :, 0] / 255.
+    denom = ((np.repeat(y[:, :, np.newaxis] + eps, 3, axis=2)) * 255) + 1
+    color = im / denom
+    return y.astype('float32'), color.astype('float32')
 
 
-
-
-def get_decoupled(im, scaling):
+def get_decoupled_paper(im, scaling):
     R = im[:, :, 0]
     G = im[:, :, 1]
     B = im[:, :, 2]
-    I = scaling[0] * R + scaling[0] * G + scaling[0] * B
-    color = im / np.repeat(I[:, :, np.newaxis], 3, axis=2)
-    return I.astype('float32'), color.astype('float32')
+    y = scaling[0] * R + scaling[1] * G + scaling[2] * B
+    y = y / 255.
+
+    denom = ((np.repeat(y[:, :, np.newaxis] + eps, 3, axis=2)) * 255) + 1
+
+    color = im / denom
+    return y.astype('float32'), color.astype('float32')
 
 
 def get_layers(im, scaling):
     diagonal = np.hypot(im.shape[0], im.shape[1])
-    intensity, color = get_decoupled(im, scaling)
-    log_intensity = np.log10(intensity + eps)
-    log_color = np.log10(color + eps)
+    intensity, color = get_decoupled_paper(im, scaling)
+    log_intensity = coudble * np.log10(intensity + 1)
 
-    large_scale = cv2.bilateralFilter(log_intensity, d=15, sigmaColor=40, sigmaSpace=0.015 * diagonal) + eps1
+    large_scale = cv2.bilateralFilter(log_intensity, d=2, sigmaColor=40, sigmaSpace=0.015 * diagonal)
     detail = (log_intensity - large_scale).astype('float32')
 
-    return log_color, log_intensity, large_scale, detail
+    color = coudble * np.log10(color + 1)
+    return color, log_intensity, large_scale, detail
 
 
 if __name__ == '__main__':
-    flash = (cv2.cvtColor(cv2.imread('images/lightCorrection/cakeFlash.jpg'),
-                          cv2.COLOR_BGR2RGB) / 255.).astype('float32')
+    flash = (cv2.cvtColor(cv2.imread('images/giantFlash.jpg'),
+                          cv2.COLOR_BGR2RGB))
     scaling = get_scaling_factors(flash)
 
     log_color_flash, log_intensity_flash, log_large_scale_flash, log_detail_flash = get_layers(flash, scaling)
@@ -62,8 +70,8 @@ if __name__ == '__main__':
     axs[3].imshow(log_detail_flash, cmap='gray')
     axs[3].set_title('Detail')
 
-    noFlash = (cv2.cvtColor(cv2.imread('images/lightCorrection/cakeNo-flash.jpg'),
-                            cv2.COLOR_BGR2RGB) / 255.).astype('float32')
+    noFlash = (cv2.cvtColor(cv2.imread('images/giantNo-flash.jpg'),
+                            cv2.COLOR_BGR2RGB)).astype('float32')
 
     log_color_noflash, log_intensity_noflash, log_large_scale_noflash, log_detail_noflash = get_layers(noFlash, scaling)
 
@@ -83,8 +91,24 @@ if __name__ == '__main__':
     axs[3].set_title('Detail')
 
     plt.figure()
-    out = 10 ** (np.repeat((log_large_scale_noflash + log_detail_flash)[:, :, np.newaxis], 3,
-                           axis=2) + log_color_flash)
+
+    weight = (log_large_scale_noflash + log_detail_flash)
+    minw = np.min(weight)
+    weight = (weight - minw)
+    maxw = np.max(weight)
+    weight = weight / maxw
+
+    log_color_flash = (log_color_flash - np.min(log_color_flash))
+    maxw = np.max(log_color_flash)
+    log_color_flash = log_color_flash / maxw
+
+    out = (np.repeat(weight[:, :, np.newaxis], 3,
+                     axis=2) * log_color_flash)
+
+    minout = np.min(out)
+    out = (out - minw)
+    maxw = np.max(out)
+    out = out / maxw
 
     plt.imshow(out)
     plt.show()
