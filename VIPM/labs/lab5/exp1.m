@@ -19,6 +19,7 @@ Nim4training=70; % TBD, fix nel caso di validation set
 features=[];
 labels=[];
 
+
 for class=0:9
     for nimage=0:Nim4training-1 % TBD, random??
         im=im2double(imread(['./image.orig/' num2str(100*class+nimage) '.jpg']));
@@ -34,7 +35,7 @@ end
 %% creazione vocabolario
 disp('kmeans')
 K=100; % TBD
-
+t
 [IDX,C]=kmeans(features,K);
 
 
@@ -43,11 +44,11 @@ disp('rappresentazione BOW training')
 BOW_tr=[];
 labels_tr=[];
 for class=0:9
-    for nimage=1:Nim4training-1
+    for nimage=0:Nim4training-1
         u=find(labels(:,1)==class & labels(:,2)==nimage);
         imfeaturesIDX=IDX(u);
         H=hist(imfeaturesIDX,1:K);
-        H=H./sum(H);
+        H=H ./sum(H);
         BOW_tr=[BOW_tr; H];
         labels_tr=[labels_tr; class];
     end
@@ -56,21 +57,15 @@ toc
 
 %% classificatore
 disp('Training')
+m = mean(BOW_tr(:));
+st = std2(BOW_tr);
+BOW_tr_std = (BOW_tr - m) ./ st ;
+ind = randperm(length(BOW_tr_std));
 
-ind = randperm(length(BOW_tr));
+y_one_hot = ind2vec(labels_tr(ind)' + 1)';
+model = patternnet([32, 16]);
+model = train(model, BOW_tr_std(ind, :)', y_one_hot');
 
-template = templateSVM(...
-        'KernelFunction', 'polynomial', ...
-        'PolynomialOrder', 3, ...
-        'KernelScale', 'auto', ...
-        'BoxConstraint', 1, ...
-        'Standardize', true);
-    
-classifier = fitcecoc(...
-        BOW_tr(ind, :), ...
-        labels_tr(ind), ...
-        'Learners', template, ...
-        'Coding', 'onevsone');
 
 %% istogrammi test
 disp('rappresentazione BOW test')
@@ -99,8 +94,10 @@ toc
 disp('classificazione test set')
 % TBD! aggiornare con il vostro classificatore
 tic
-predicted_class=predict(classifier, BOW_te);
-
+BOW_te_std = (BOW_te - m) ./ st ;
+predicted_class=model(BOW_te_std');
+predicted_class = vec2ind(predicted_class) - 1;
+predicted_class = predicted_class'
 toc
 
 %% misurazione performance
