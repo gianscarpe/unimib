@@ -58,7 +58,7 @@ function EKF
     H = calculateSymbolicH; % Use as an example for G, and remind that its analytical form depends on whether the robot is going straight or not
 
 
-    steps=30
+
     % And here we go: batch-simulate in this loop the evolution of the system as well as your KF estimate of its state
     for i=1:steps-1
         % Print the current status of the system in the command window

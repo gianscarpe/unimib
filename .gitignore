@@ -1,4 +1,5 @@
 .idea
+*.m~
 *.pgm
 *.mp4
 *.jpg
