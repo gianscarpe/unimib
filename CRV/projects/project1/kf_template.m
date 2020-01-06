@@ -47,13 +47,13 @@ function EKF
 
     % Initializations 
     kalmanstate(1,:) = [0, 0, 0];       % initial state estimate
-    kalmanstatecov(:,:,1) = [1 0 0; 0 1 0; 0 0 pi/2];  % covariance of the initial state estimate, a (3,3) matrix; could it be set to diagonal? insert your reasoning in a comment
+    kalmanstatecov(:,:,1) = [1 0 0; 0 1 0; 0 0 pi/6];  % covariance of the initial state estimate, a (3,3) matrix; could it be set to diagonal? insert your reasoning in a comment
     % La matrice di covarianza della stima di stato iniziale viene fissata
     % come una matrice diagonale 3x3. La scelta presuppone che 
     % le tre variabili di stato (X, Y, Theta) siano tra loro indipendenti.
-    % Stiamo che lo stato iniziale si discosti di 2 rispetto al
+    % Assumo che lo stato iniziale si discosti di 1 rispetto al
     % punto stimato (0, 0) lungo entrambi gli assi, e di un errore di
-    % angolazione pi/2 rispetto all'orientamento iniziale (ossia, theta=0)
+    % angolazione pi/6 rispetto all'orientamento iniziale (ossia, theta=0)
 
     % configuration of uncertainties
     R(:,:) = eye(3);     % covariance of the noise acting on the state, a (3,3) matrix; could it be set to diagonal? insert your reasoning in a comment
@@ -63,15 +63,19 @@ function EKF
     % stimare un valore di scala dell'errore, assumo che la matrice sia
     % l'identità.
     
-    Q(:,:) = eye(4);
+    Q(:,:) = [eye(4)];
     % Stiamo che il rimuore che agisce sulle misure della camera tenga
-    % conto del rumore introdotto dall'acquisizione. La matrice di
-    % covarianza è diagonale, ossia assume che ciascun valore di errore sia
-    % indipendente dagli altri. Come per R, non sapendo stimare una scala
-    % di errore assegno una matrice identità 4x4. I due blocchi 2x2 si
-    % riferiscono agli errori sulle variabili (u1, v1) e (u2, v2)
+    % conto del rumore introdotto dal processo di acquisizione. 
+    % La matrice di covarianza è diagonale a blocchi. Come per R, 
+    % non sapendo stimare una scala di errore ciascun blocco è una matrice
+    % identità 2x2. Si tratta quindi di una matrice composta come:
+    % u1|1 0 0 0|
+    % v1|0 1 0 0|
+    % u2|0 0 1 0|
+    % v2|0 0 0 1|
+    % Dove i due blocchi corrispondono alle matrici di covarianza per le
+    % variabili (u1, v1) e (u2, v2)
     
-   
     % Compute symbolic jacobians once and for all! If you do not already know how to use symbolic calculus inside matlab, Please take ten minutes to learn it.
     % Create the symbolic matrices representing the G and H matrices.
     H = calculateSymbolicH; % Use as an example for G, and remind that its analytical form depends on whether the robot is going straight or not
