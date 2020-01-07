@@ -2,9 +2,9 @@
 % Versione dell'esercizio: 5 del 01.jan.2019
 % 
 % Compilare i seguenti campi:
-% Nome: 
-% Cognome: 
-% Matricola: 
+% Nome: Gianluca
+% Cognome: Scarpellini
+% Matricola: 807541
 % 
 % Note:
 %  1) utilizzare il Sistema Internazionale per ogni grandezza dotata di dimensioni,
@@ -47,34 +47,42 @@ function EKF
 
     % Initializations 
     kalmanstate(1,:) = [0, 0, 0];       % initial state estimate
-    kalmanstatecov(:,:,1) = [1 0 0; 0 1 0; 0 0 pi/6];  % covariance of the initial state estimate, a (3,3) matrix; could it be set to diagonal? insert your reasoning in a comment
+    kalmanstatecov(:,:,1) =  [0.01 0 0; 0 0.01 0; 0 0 pi/18];  % covariance of the initial state estimate, a (3,3) matrix; could it be set to diagonal? insert your reasoning in a comment
     % La matrice di covarianza della stima di stato iniziale viene fissata
     % come una matrice diagonale 3x3. La scelta presuppone che 
     % le tre variabili di stato (X, Y, Theta) siano tra loro indipendenti.
-    % Assumo che lo stato iniziale si discosti di 1 rispetto al
+    % Assumo che lo stato iniziale si discosti di 0.01 rispetto al
     % punto stimato (0, 0) lungo entrambi gli assi, e di un errore di
-    % angolazione pi/6 rispetto all'orientamento iniziale (ossia, theta=0)
+    % angolazione pi/18 (2 gradi) rispetto all'orientamento iniziale 
+    % (ossia, theta=0)
 
     % configuration of uncertainties
-    R(:,:) = eye(3);     % covariance of the noise acting on the state, a (3,3) matrix; could it be set to diagonal? insert your reasoning in a comment
+    R(:, :) = eye(3);    % covariance of the noise acting on the state, a (3,3) matrix; could it be set to diagonal? insert your reasoning in a comment
     % Stimo che il rumore che agisce sullo stato è rappresentato come una
     % matrice diagonale 3x3, ossia assumo che l'errore che agisce su
     % ciascuna variabile è indipendente dalle altre variabili. Non potendo
     % stimare un valore di scala dell'errore, assumo che la matrice sia
     % l'identità.
     
-    Q(:,:) = [eye(4)];
+    Q(:,:) = 8 * eye(4);
     % Stiamo che il rimuore che agisce sulle misure della camera tenga
     % conto del rumore introdotto dal processo di acquisizione. 
-    % La matrice di covarianza è diagonale a blocchi. Come per R, 
-    % non sapendo stimare una scala di errore ciascun blocco è una matrice
-    % identità 2x2. Si tratta quindi di una matrice composta come:
-    % u1|1 0 0 0|
-    % v1|0 1 0 0|
-    % u2|0 0 1 0|
-    % v2|0 0 0 1|
+    % La matrice di covarianza è diagonale a blocchi. Assumo che la 
+    % varianza sia 8, e di conseguenza la deviazione standard di circa 2.8px. 
+    
+    % Si tratta quindi di una matrice composta come:
+    % u1|8 0 0 0|
+    % v1|0 8 0 0|
+    % u2|0 0 8 0|
+    % v2|0 0 0 8|
     % Dove i due blocchi corrispondono alle matrici di covarianza per le
     % variabili (u1, v1) e (u2, v2)
+    
+    % NOTA: ho ottenuto i valori di cui sopra effetuando diverse prove del
+    % filtro e mantenendo la configurazione data (h=10, b=0.5, focal=600px)
+    % Ho pertanto determinato la scala delle matrici di covarianza affinché
+    % i punti predetti (in azzurro) rientrino nell'incertezza rappresentata
+    % dall'elissi.
     
     % Compute symbolic jacobians once and for all! If you do not already know how to use symbolic calculus inside matlab, Please take ten minutes to learn it.
     % Create the symbolic matrices representing the G and H matrices.
@@ -102,7 +110,7 @@ function EKF
     end
 
     % Do not edit the following lines!
-    %Plot the results
+    % Plot the results
     figure(3);
     hold on;
         plot(kalmanstate(:,1), kalmanstate(:,2),'g+');      
