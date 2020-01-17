@@ -178,18 +178,13 @@ function [filtered_state, filtered_sigma, predicted_state, predicted_sigma]= ...
     camera = eval(subs(symb_observation,[symb_focal,symb_pTpDistance,symb_camera_height,symb_x, ...
         symb_y,symb_theta], [focal, pTpDistance, camera_height, ...
         predicted_state(1,1), predicted_state(1,2),predicted_state(1,3)]));
-    expected_camera_readings(1,1) = camera(1);
-    expected_camera_readings(1,2) = camera(2);
-    expected_camera_readings(1,3) = camera(3);
-    expected_camera_readings(1,4) = camera(4);
     filtered_state = predicted_state(1,:)' + K * (camera_readings - expected_camera_readings)';
     filtered_sigma = (eye(3) - K * H) * predicted_sigma(:,:,1);
 end
 
 function symb_state = calculateSymbolicNewStateForwardMovement
     syms symb_ssx symb_sdx symb_l symb_x symb_y symb_theta
-    r = symb_l * symb_sdx / (symb_ssx - symb_sdx);
-    a = (symb_ssx - symb_sdx) / symb_l;
+
     dx = symb_x + symb_ssx * cos(symb_theta);
     dy = symb_y - symb_ssx * sin(symb_theta);
     dt = symb_theta;

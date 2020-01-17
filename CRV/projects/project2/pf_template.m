@@ -79,10 +79,10 @@ function PF
         
     % Robot & Environment configuration
     filename = 'simulated_data4t.txt';        
-    baseline = ___;                   % wheels base / interaxis
-    focal = ____;                     % focal length of the camera (in pixels)
-    camera_height = __;               % how far is the camera w.r.t. the robot ground plane
-    pTpDistance = _;                  % distance between two points on the robot
+    baseline = 0.5;                   % wheels base / interaxis
+    focal = 600;                     % focal length of the camera (in pixels)
+    camera_height = 10;               % how far is the camera w.r.t. the robot ground plane
+    pTpDistance = 0.6;                  % distance between two points on the robot
     
     % Read & parse data from the input file
     DATA=read_input_file(filename);    
@@ -95,16 +95,20 @@ function PF
     steps = size(odometry,1);
     
     % world dimensions (meter)
-    lenght = ____;
-    width  = ____;
+    w_lenght = 30;
+    w_width  = 30;
     
     % number of particles
-    number_of_particles = ____;
+    number_of_particles = 100;
     
     % initialize the filter with RANDOM samples
-    particle_set_a   = ____;
-    particle_set_b   = ____;
-    particle_weights = ____;
+    particle_set_a   = rand(3, number_of_particles);
+    particle_set_a(1, :) = w_lenght * particle_set_a(1, :);
+    particle_set_a(2, :) = w_width * particle_set_a(2, :);
+    particle_set_a(3, :) = 2 * pi * particle_set_a(3, :);
+    
+    particle_set_b   = randn(3, number_of_particles);
+    particle_weights = randi(1, number_of_particles);
         
     show_particles(particle_set_a);
     
@@ -112,56 +116,123 @@ function PF
         
         % prediction
         for particle=1:number_of_particles
-            particle_set_b(:, particle)=execute_prediction(particle_set_a(:,particle),________________);            
+            particle_set_b(:, particle)=execute_prediction(particle_set_a(:,particle),odometry(i, :), baseline);            
         end
                 
         figure(2)
         clf; title('CAMERA READINGS'); set(gca,'YDir','reverse'); hold on        
-        plot(camera_readings1(:,1),camera_readings1(:,2),'b*');
-        plot(camera_readings2(:,1),camera_readings2(:,2),'b*');
-        plot(camera_readings3(:,1),camera_readings3(:,2),'b*');
-        plot(camera_readings4(:,1),camera_readings4(:,2),'b*');        
+        plot(camera_readings1(i,1),camera_readings1(i,2),'b*');
+        plot(camera_readings2(i,1),camera_readings2(i,2),'b*');
+        plot(camera_readings3(i,1),camera_readings3(i,2),'b*');
+        plot(camera_readings4(i,1),camera_readings4(i,2),'b*');        
         % weight
         for particle=1:number_of_particles
-            particle_weights(particle)=weight_particle(particle_set______(:,particle),____________________);
+            particle_weights(particle)= weight_particle(particle_set_b(:,particle),camera_readings1(i, :), ...
+            camera_readings2(i, :),camera_readings3(i, :),camera_readings4(i, :),camera_height, ...
+            focal, pTpDistance);
+ 
         end
         hold off
         
         % build sampling method (e.g. roulette wheel)
-        ____________________________________________________
-        ____________________________________________________
-        ____________________________________________________
-        
         % resampling                
-        for particle=1:number_of_particles            
-            ____________________________________________________
-            ____________________________________________________
-            ____________________________________________________
+        %particle_weights = (particle_weights) / sum(particle_weights);
+        
+        
+        index = int8(randi(number_of_particles));
+        beta = 0.0;
+        mw = max(particle_weights);
+        % PARTICLE DEPRIVATION SOLUTION
+        %particle_weight_avg = mean(particle_weights);
+        %w_slow = w_slow + alpha_slow * (particle_weight_avg - w_slow);
+        %w_fast = w_fast + alpha_fast * (particle_weight_avg - w_slow);
+        
+        
+        for particle=1:number_of_particles
+           % random_value = randn;
+            %%pp = max(0, 1 - w_fast / w_slow);
+         
+            
+            beta = beta + rand * 2.0 * mw;
+            while (beta > particle_weights(index))
+                beta = beta - particle_weights(index);
+                index = int8(mod(index, number_of_particles)) +1;
+            end
+            display(index);
+            particle_set_a(:, particle) = particle_set_b(:, index); 
+            
+            
         end        
                 
         show_particles(particle_set_a);
         particle_weights=zeros(1,number_of_particles);        
-%         pause(0.01);
+         pause(1);
     end
 
 end
 
-function weight_particle=weight_particle(particle_pose,camera_readings1,camera_readings2,camera_readings3,camera_readings4,camera_height, focal, pTpDistance)
-
-    ____________________________________________________
-    ____________________________________________________
-    ____________________________________________________
-    ____________________________________________________
+function prob=weight_particle(particle_pose,camera_readings1,camera_readings2,camera_readings3,camera_readings4,camera_height, focal, pTpDistance)
+    x = particle_pose(1);
+    y = particle_pose(2);
+    theta = particle_pose(3);
+    
+        
+    u1 = x * focal / camera_height;
+    v1 = - y * focal / camera_height;
+    u2 = (x * focal + pTpDistance * focal * cos(theta))/camera_height;
+    v2 = (pTpDistance * focal * sin(theta) - y * focal) / camera_height;
+    observation = [u1,v1,u2,v2];
+    
+    noise = 100 * eye(4);
+    prob = mvnpdf(abs(camera_readings1 - observation), 0, noise);
+    if ~isnan(camera_readings2)
+        dist = norm(camera_readings2 - observation);
+        prob = prob + mvnpdf(abs(camera_readings2 - observation), 0, noise);
+        
+    end
+    if ~isnan(camera_readings3)
+        dist = norm(camera_readings3 - observation);
+        prob = prob + mvnpdf(abs(camera_readings3 - observation), 0, noise);
+        
+    end
+    if ~isnan(camera_readings4)
+        dist = norm(camera_readings4 - observation);
+        prob = prob + mvnpdf(abs(camera_readings4 - observation), 0, noise);
+    end
+    
+    
+    
+    
+    
 
 end
 
 function prediction=execute_prediction(particle,odometry,baseline)
+    ssx = odometry(1);
+    sdx = odometry(2);
+    x = particle(1);
+    y = particle(2);
+    theta = particle(3);
+    if ssx ~= sdx
+        r = baseline * sdx / (ssx - sdx);
+        a = (ssx - sdx) / baseline;
+        dx = x - sin(theta) * (baseline / 2 + r - cos(a) * (baseline/2 + r)) + ...
+            cos(theta) * sin(a) * (baseline / 2 + r);
+    
+        dy = y - cos(theta) * (baseline / 2 + r - cos(a) * (baseline/2 + r)) - ...
+            sin(a) * sin(theta) * (baseline / 2 + r);
+    
+        dt = theta + a;
+        prediction = [dx + randn * 0.1; dy + randn * 0.1; 
+            mod(dt + randn * 0.1, 2 * pi)];
        
-    ____________________________________________________
-    ____________________________________________________
-    ____________________________________________________
-    ____________________________________________________
-
+    else
+        dx = x + ssx * cos(theta);
+        dy = y - ssx * sin(theta);
+        dt = theta;
+        prediction = [dx; dy;dt];
+        
+    end
 end
     
 function show_particles(particle_set)
@@ -180,7 +251,6 @@ end
 
 function simulated_data = read_input_file(filename)
 % Do not edit this function 
-    
     simulated_data = dlmread(filename,';');
     
 end
