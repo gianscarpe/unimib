@@ -83,7 +83,13 @@ function PF
     focal = 600;                     % focal length of the camera (in pixels)
     camera_height = 10;               % how far is the camera w.r.t. the robot ground plane
     pTpDistance = 0.6;                  % distance between two points on the robot
-    
+    alpha_slow = 0;
+    alpha_fast = 0;
+    w_slow = 0.01;
+    w_fast = 0.99;
+    zhit = 0.6;
+    zrand = 0.4;
+    unif = 0.01;
     % Read & parse data from the input file
     DATA=read_input_file(filename);    
     odometry  = [DATA(:,3),DATA(:,4)];    
@@ -99,7 +105,7 @@ function PF
     w_width  = 30;
     
     % number of particles
-    number_of_particles = 100;
+    number_of_particles = 500;
     
     % initialize the filter with RANDOM samples
     particle_set_a   = rand(3, number_of_particles);
@@ -137,36 +143,43 @@ function PF
         % build sampling method (e.g. roulette wheel)
         % resampling                
         %particle_weights = (particle_weights) / sum(particle_weights);
-        
+        particle_weights = zhit * particle_weights + zrand * unif;
         
         index = int8(randi(number_of_particles));
         beta = 0.0;
         mw = max(particle_weights);
         % PARTICLE DEPRIVATION SOLUTION
-        %particle_weight_avg = mean(particle_weights);
-        %w_slow = w_slow + alpha_slow * (particle_weight_avg - w_slow);
-        %w_fast = w_fast + alpha_fast * (particle_weight_avg - w_slow);
+        particle_weight_avg = mean(particle_weights(:));
+        w_slow = w_slow + alpha_slow * (particle_weight_avg - w_slow);
+        w_fast = w_fast + alpha_fast * (particle_weight_avg - w_fast);
         
         
         for particle=1:number_of_particles
-           % random_value = randn;
-            %%pp = max(0, 1 - w_fast / w_slow);
+            random_value = rand;
+            pp = max(0, 1 - w_fast / w_slow);
+            if random_value < pp
+                    particle_set_a(1, particle) = w_lenght * rand;
+                    particle_set_a(2, particle) = w_width * rand;
+                    particle_set_a(3, particle) = 2 * pi * rand;
+    
+                
+            else
          
-            
-            beta = beta + rand * 2.0 * mw;
-            while (beta > particle_weights(index))
-                beta = beta - particle_weights(index);
-                index = int8(mod(index, number_of_particles)) +1;
+
+                beta = beta + rand * 2.0 * mw;
+                while (beta > particle_weights(index))
+                    beta = beta - particle_weights(index);
+                    index = int8(mod(index, number_of_particles)) +1;
+                end
+
+                particle_set_a(:, particle) = particle_set_b(:, index); 
+
             end
-            display(index);
-            particle_set_a(:, particle) = particle_set_b(:, index); 
-            
-            
         end        
                 
         show_particles(particle_set_a);
         particle_weights=zeros(1,number_of_particles);        
-         pause(1);
+      
     end
 
 end
@@ -183,27 +196,28 @@ function prob=weight_particle(particle_pose,camera_readings1,camera_readings2,ca
     v2 = (pTpDistance * focal * sin(theta) - y * focal) / camera_height;
     observation = [u1,v1,u2,v2];
     
-    noise = 100 * eye(4);
-    prob = mvnpdf(abs(camera_readings1 - observation), 0, noise);
+    zhit = 0.9;
+    zrand = 0.1;
+    zmax = 0.05;
+    unif = 1 / 100;
+    maxvalue = 100;
+    
+    noise = 50;
+    prob = normpdf(norm(camera_readings1 - observation), 0, noise);
     if ~isnan(camera_readings2)
         dist = norm(camera_readings2 - observation);
-        prob = prob + mvnpdf(abs(camera_readings2 - observation), 0, noise);
+        prob = prob + normpdf(dist, 0, noise);
         
     end
     if ~isnan(camera_readings3)
         dist = norm(camera_readings3 - observation);
-        prob = prob + mvnpdf(abs(camera_readings3 - observation), 0, noise);
+        prob = prob + normpdf(dist, 0, noise);
         
     end
     if ~isnan(camera_readings4)
         dist = norm(camera_readings4 - observation);
-        prob = prob + mvnpdf(abs(camera_readings4 - observation), 0, noise);
+        prob = prob + normpdf(dist, 0, noise);
     end
-    
-    
-    
-    
-    
 
 end
 
