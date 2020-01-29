@@ -92,11 +92,10 @@ function PF
     focal = 600;                     % focal length of the camera (in pixels)
     camera_height = 10;               % how far is the camera w.r.t. the robot ground plane
     pTpDistance = 0.6;                  % distance between two points on the robot
-    alpha_slow = 0.001;
-    alpha_fast = 0.09;
+    alpha_slow = 0;
+    alpha_fast = 0;
     w_slow = 0;
     w_fast = 0;
-    unif = 1e-10;
     % Read & parse data from the input file
     DATA=read_input_file(filename);    
     odometry  = [DATA(:,3),DATA(:,4)];    
@@ -112,7 +111,7 @@ function PF
     w_width  = 30;
     
     % number of particles
-    number_of_particles = 150;
+    number_of_particles = 1000;
     
     % initialize the filter with RANDOM samples
     particle_set_a   = rand(3, number_of_particles);
@@ -121,7 +120,7 @@ function PF
     particle_set_a(3, :) = 2 * pi * particle_set_a(3, :);
     
     particle_set_b   = zeros(3, number_of_particles);
-    particle_weights = zeros(1, number_of_particles);
+    particle_weights = ones(1, number_of_particles) / number_of_particles;
         
     show_particles(particle_set_a);
     
@@ -141,18 +140,23 @@ function PF
             particle_set_b(:, particle)=execute_prediction(particle_set_a(:,particle),odometry(i, :), baseline);            
         end
                 
-      
+        best = zeros(1, 5);
         % weight
         for particle=1:number_of_particles
-            particle_weights(1, particle)= weight_particle(particle_set_b(:,particle),camera_readings1(i, :), ...
+            [w,b] = weight_particle(particle_set_b(:,particle),camera_readings1(i, :), ...
             camera_readings2(i, :),camera_readings3(i, :),camera_readings4(i, :),camera_height, ...
             focal, pTpDistance);
- 
+            best(b) = best(b) + 1;
+            particle_weights(1, particle) = w * particle_weights(1, particle);
         end
-        hold off
         
+        
+        w_tot = sum(particle_weights(1, particle)) + 1e-40;
+        particle_weights(1, particle) = particle_weights(1, particle) ./ w_tot;  
+        
+        display(best);
         % build sampling method (e.g. roulette wheel)        
-        particle_weights = particle_weights + unif;
+        particle_weights = particle_weights;
         
         
         
@@ -163,25 +167,25 @@ function PF
         w_fast = w_fast + alpha_fast * (particle_weight_avg - w_fast);
         factor = 1 - w_fast / w_slow;
         
-        
-        
-        for particle=1:number_of_particles
-            random_value = rand;
-            pp = max(0, factor);
-            if random_value < pp
-                    particle_set_a(1, particle) = w_lenght * rand;
-                    particle_set_a(2, particle) = w_width * rand;
-                    particle_set_a(3, particle) = 2 * pi * rand;
-    
+        ind = multinomial_sampling(particle_weights);
+        particle_set_a = particle_set_b(:,ind); 
                 
-            else
-         
-
-                ind = roulette_wheel(particle_weights);
-                particle_set_a(:,particle) = particle_set_b(:,ind); 
-
-            end
-        end        
+%         for particle=1:number_of_particles
+%             random_value = rand;
+%             pp = max(0, factor);
+%             if random_value < pp
+%                     particle_set_a(1, particle) = w_lenght * rand;
+%                     particle_set_a(2, particle) = w_width * rand;
+%                     particle_set_a(3, particle) = 2 * pi * rand;
+%     
+%                 
+%             else
+%          
+% 
+% 
+% 
+%             end
+%         end        
                 
         show_particles(particle_set_a);
         particle_weights=zeros(1,number_of_particles);
@@ -191,7 +195,7 @@ function PF
 
 end
 
-function prob=weight_particle(particle_pose,camera_readings1,camera_readings2,camera_readings3,camera_readings4,camera_height, focal, pTpDistance)
+function [prob, best]=weight_particle(particle_pose,camera_readings1,camera_readings2,camera_readings3,camera_readings4,camera_height, focal, pTpDistance)
     x = particle_pose(1);
     y = particle_pose(2);
     theta = particle_pose(3);
@@ -201,21 +205,31 @@ function prob=weight_particle(particle_pose,camera_readings1,camera_readings2,ca
     v1 = - y * focal / camera_height;
     u2 = (x * focal + pTpDistance * focal * cos(theta))/camera_height;
     v2 = (pTpDistance * focal * sin(theta) - y * focal) / camera_height;
-    observation = [u1;v1;u2;v2];
+    observation = [u1;v1 ;u2 ;v2];
     
     readings = [camera_readings1; camera_readings2; camera_readings3; camera_readings4]';
+    %readings = camera_readings1';
     
     
     mu = observation;
-    noise = 10;
+    noise = sqrt(350);
     
     prob = 0;
+    i = 1;
+    best = 5;
     for reading=readings
         if ~isnan(reading)
             x = reading;
-            prob = prob + normpdf(norm(x(1:2) - mu(1:2)), 0, noise) * normpdf(norm(x(3:4) - mu(3:4)), 0, noise);
-        end
+            x_prob = normpdf(norm(x(1:2)- mu(1:2)), 0, noise) * normpdf(norm(x(3:4) - mu(3:4)), 0, noise);
+            if x_prob > prob
+                best = i;
+            end
+            prob = max(prob, x_prob);
+            
+         end
+        i = i+1;
     end
+    
 
 end
 
@@ -236,7 +250,7 @@ function prediction=execute_prediction(particle,odometry,baseline)
     
         dt = theta + a;
         prediction = [dx + randn * .1; dy + randn * .1; 
-            dt + randn * .1];
+            mod(dt + randn * .1, 2*pi)];
        
     else
         dx = x + ssx * cos(theta);
@@ -268,9 +282,9 @@ function simulated_data = read_input_file(filename)
 end
 
 function [index] = roulette_wheel(weights)
-    [~, id] = sort(weights);
+    [sorted_weights, id] = sort(weights);
     sum_w = sum(weights);
-    p = weights / sum_w;
+    p = sorted_weights / sum_w;
     r = rand;
     i = 1;
     while r>0
@@ -280,6 +294,11 @@ function [index] = roulette_wheel(weights)
     index = id(i-1);
 end
 
+function idxs = multinomial_sampling(weights)
+    Ns = size(weights, 2);
+    idxs = randsample(1:Ns, Ns, true, weights);
+
+end
 function particle_index = resample_index(weights)
     total_weight = sum(weights);
     sample = rand *total_weight;
