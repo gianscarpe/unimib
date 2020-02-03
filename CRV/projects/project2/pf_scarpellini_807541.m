@@ -92,8 +92,8 @@ function PF
     focal = 600;                     % focal length of the camera (in pixels)
     camera_height = 10;               % how far is the camera w.r.t. the robot ground plane
     pTpDistance = 0.6;                  % distance between two points on the robot
-    alpha_slow = 0.009;
-    alpha_fast = 0.9;
+    alpha_slow = 0;
+    alpha_fast = 0;
     w_slow = 0;
     w_fast = 0;
     % Read & parse data from the input file
@@ -111,7 +111,7 @@ function PF
     w_width  = 30;
     
     % number of particles
-    number_of_particles = 1000;
+    number_of_particles = 5000;
     
     % initialize the filter with RANDOM samples
     particle_set_a   = rand(3, number_of_particles);
@@ -167,7 +167,7 @@ function PF
         particle_weight_avg = mean(particle_weights(:));
         w_slow = w_slow + alpha_slow * (particle_weight_avg - w_slow);
         w_fast = w_fast + alpha_fast * (particle_weight_avg - w_fast);
-        factor = 1 - w_fast / w_slow
+        factor = 1 - w_fast / w_slow;
         
                 
         for particle=1:number_of_particles
@@ -213,7 +213,7 @@ function [prob, best, observation]=weight_particle(particle_pose,camera_readings
     
     
     mu = observation;
-    noise = 0;
+    noise = 0.1;
     
     prob = 0;
     i = 1;
@@ -225,7 +225,7 @@ function [prob, best, observation]=weight_particle(particle_pose,camera_readings
             if x_prob > prob
                 best = i;
             end
-            prob = prob + x_prob;
+            prob = max(prob, x_prob);
             
          end
         i = i+1;
@@ -262,7 +262,7 @@ end
 function show_particles(particle_set)
 % Do not edit this function 
         figure(1);
-        clf
+        tclf
         hold on
         plot(particle_set([1],:),particle_set([2],:),'k*')
         arrow=0.5;
