@@ -32,8 +32,8 @@
 % DOMANDE:
 %       R1.  build sampling method: quale metodo di resampling avete
 %            utilizzato? 
-%            Ho impiegato il metodo roulette wheel, di cui propongo due
-%            implementazioni. 
+%            Ho impiegato il metodo roulette wheel, di cui propongo 
+%            l'implementazione (commentata) nel codice alla riga 266. 
 
 %       R2.  in cosa consiste il problema noto come 'particle deprivation'?
 %            Accade quando non ci sono particle nella vicinanza dello stato
@@ -46,15 +46,16 @@
 %            risolverli utilizzando i metodi descritti a lezione (adattando
 %            il codice per risolvere questo problema si otterrà un voto più
 %            alto). Descrivi qui la tecnica che hai utilizzato.
-%            Disponendo di una potenza di calcolo limitata, ho lavorato con
-%            un numero relativamente basso di number_of_particles. Per
-%            ovviare il problema di particle deprivation, ho implementato
-%            la versione di particle filters Augmented MCL. In particolare,
+%            Nella precedente consegna avevo implementato la versione di
+%            particle filters Augmented MCL. In particolare,
 %            a ogni istante t calcolo due coefficienti (w_slow e w_fast),
 %            in funzione dei coefficienti stessi al tempo t-1, al peso
 %            medio e a due parametri alpha_slow e alpha_fast. Per ogni
-%            particle, determino se assegnare una particle randomica con
-%            probabilita' max(0, 1 - w_fast / w_slow)
+%            particle, determino se assegnare una particle RANDOMICA con
+%            probabilita' max(0, 1 - w_fast / w_slow). Ho deciso di
+%            rimuovere la particle deprivation in questa soluzione: ho
+%            migliorato difatti la funzione di weigth, rendendola più
+%            robusta, e ho valutato che 500 particles sono sufficienti.
 %            
 %
 %       R4.  il numero delle particelle è fisso nella
@@ -83,7 +84,7 @@
 function PF
 
     % Close all windows and reset workspace
-    clear all;
+    clear;
     close all;
         
     % Robot & Environment configuration
@@ -92,10 +93,7 @@ function PF
     focal = 600;                     % focal length of the camera (in pixels)
     camera_height = 10;               % how far is the camera w.r.t. the robot ground plane
     pTpDistance = 0.6;                  % distance between two points on the robot
-    alpha_slow = 0;
-    alpha_fast = 0;
-    w_slow = 0;
-    w_fast = 0;
+    
     % Read & parse data from the input file
     DATA=read_input_file(filename);    
     odometry  = [DATA(:,3),DATA(:,4)];    
@@ -111,8 +109,8 @@ function PF
     w_width  = 30;
     
     % number of particles
-    number_of_particles = 5000;
-    
+    number_of_particles = 500;
+   
     % initialize the filter with RANDOM samples
     particle_set_a   = rand(3, number_of_particles);
     particle_set_a(1, :) = w_lenght * particle_set_a(1, :);
@@ -120,7 +118,7 @@ function PF
     particle_set_a(3, :) = 2 * pi * particle_set_a(3, :);
     
     particle_set_b   = zeros(3, number_of_particles);
-    predictions = zeros(2, number_of_particles);
+    predicted_observations = zeros(2, number_of_particles);
     particle_weights = ones(1, number_of_particles) / number_of_particles;
     
     
@@ -130,105 +128,108 @@ function PF
     for i=1:steps-1
         figure(2)
        clf; title('CAMERA READINGS'); set(gca,'YDir','reverse'); hold on        
-        plot(camera_readings1(1:i,1),camera_readings1(1:i,2),'b*');
+        plot(camera_readings1(1:i,1),camera_readings1(1:i,2),'k*');
         plot(camera_readings2(1:i,1),camera_readings2(1:i,2),'r*');
         plot(camera_readings3(1:i,1),camera_readings3(1:i,2),'g*');
         plot(camera_readings4(1:i,1),camera_readings4(1:i,2),'y*');  
-        plot(predictions(1, :), predictions(2, :), 'b*');
+        plot(predicted_observations(1, :), predicted_observations(2, :), 'b*');
         hold off
+        legend('Obs 1','Obs 2','Obs 3', 'Obs 4', 'Prediction')
         show_particles(particle_set_a);
         
-        % prediction
+        % PREDICTION
+        % Per ogni particle al tempo t-1, effettuo sample della
+        % distribuzione di probabilità di STATO, ottenendo un sample
+        % "dell'evoluzione" della particle al tempo t
+        
         for particle=1:number_of_particles
             particle_set_b(:, particle)=execute_prediction(particle_set_a(:,particle),odometry(i, :), baseline);            
         end
                 
-        best = zeros(1, 4);
-        % weight
+        % WEIGHT
+        % Per ogni particle, calcolo il suo importance factor 
+        % (funzione weight_particle), che successivamente converto in un
+        % valore compreso tra 0 e 1, e ottengo la sua location sul piano
+        % immagine (in predicted_observations), che uso per visualizzare
+        % graficamente le particles e confrontarle visivamente con la 
+        % risposta del sensore
+        
         for particle=1:number_of_particles
-            [w,b, obs] = weight_particle(particle_set_b(:,particle),camera_readings1(i, :), ...
+            [w, obs] = weight_particle(particle_set_b(:,particle),camera_readings1(i, :), ...
             camera_readings2(i, :),camera_readings3(i, :),camera_readings4(i, :),camera_height, ...
             focal, pTpDistance);
-            best(b) = best(b) +1;
+
             particle_weights(1, particle) = w;
-            predictions(:, particle) = obs(1:2);
+            predicted_observations(:, particle) = obs(1:2);
         end
         
+        % Normalizzazione dei pesi, al fine di riportare i valori in un
+        % range compreso tra 0 e 1 affinché la somma sia 1. 
+        % In primis rimappo i weights ottenuti dal passo precendete ponendo
+        % il massimo uguale a 1 e il minimo uguale a 0. Succssivamente,
+        % inverto i valori (la distanza massima, ossia 1, 
+        % è anche la meno probabile). Concludo normalizzando al fine di 
+        % ottenere un array di pesi che sommi a 1
+        % (ossia, l'equivalente di una distribuzione di probabilita')
         
-        w_tot = sum(particle_weights);
-        particle_weights = particle_weights / w_tot; 
-        
-        display(best);
-        % build sampling method (e.g. roulette wheel)        
-        
-        
-        
-        % PARTICLE DEPRIVATION SOLUTION
-        particle_weight_avg = mean(particle_weights(:));
-        w_slow = w_slow + alpha_slow * (particle_weight_avg - w_slow);
-        w_fast = w_fast + alpha_fast * (particle_weight_avg - w_fast);
-        factor = 1 - w_fast / w_slow;
-        
-                
-        for particle=1:number_of_particles
-            random_value = rand;
-            pp = max(0, factor);
-            if random_value < pp
-                    particle_set_a(1, particle) = w_lenght * rand;
-                    particle_set_a(2, particle) = w_width * rand;
-                    particle_set_a(3, particle) = 2 * pi * rand;
-    
-                
-            else
-                ind = roulette_wheel(particle_weights);
-                particle_set_a(:, particle) = particle_set_b(:, ind);
-         
-            end
-        end        
-%         inds = multinomial_sampling(particle_weights);
-%         particle_set_a = particle_set_b(:, inds);
-        particle_weights=zeros(1,number_of_particles);
+       
+        min_weight = min(particle_weights);
+        max_weight = max(particle_weights);
+        particle_weights = (particle_weights - min_weight) / ...
+            (max_weight - min_weight);
+        particle_weights = 1 - particle_weights;
+        particle_weights = particle_weights / sum(particle_weights);  
         
 
+        % build sampling method (e.g. roulette wheel)        
         
-      
+        % PARTICLE DEPRIVATION SOLUTION
+        % Ho deciso di non impiegare la soluzione di particle deprivation,
+        % un numero di particles >=500 e' sufficiente a ottenere un filtro
+        % robusto
+        
+        % RESAMPLING
+        
+         inds = resample_wheel(particle_weights);
+         particle_set_a = particle_set_b(:, inds);
+         particle_weights=zeros(1,number_of_particles);
     end
 
 end
 
-function [prob, best, observation]=weight_particle(particle_pose,camera_readings1,camera_readings2,camera_readings3,camera_readings4,camera_height, focal, pTpDistance)
+function [prob, observation]=weight_particle(particle_pose,camera_readings1,camera_readings2,camera_readings3,camera_readings4,camera_height, focal, pTpDistance)
     x = particle_pose(1);
     y = particle_pose(2);
     theta = particle_pose(3);
-    
-        
+    % Eq. misura
     u1 = x * focal / camera_height;
     v1 = - y * focal / camera_height;
     u2 = (x * focal + pTpDistance * focal * cos(theta))/camera_height;
     v2 = (pTpDistance * focal * sin(theta) - y * focal) / camera_height;
     observation = [u1;v1 ;u2 ;v2];
-    
+   
     readings = [camera_readings1; camera_readings2; camera_readings3; camera_readings4]';
-    %readings = camera_readings1';
-    
-    
+   
     mu = observation;
-    noise = 0.1;
+    prob = inf;
+    alpha = 15;
     
-    prob = 0;
-    i = 1;
-    best = 0;
-    for reading=readings
-        if ~isnan(reading)
-            x = reading;
-            x_prob = 1 / (norm(x(1:2) - mu(1:2)) * norm(x(3:4) - mu(3:4)) + randn * noise);
-            if x_prob > prob
-                best = i;
-            end
-            prob = max(prob, x_prob);
+    
+    for x=readings
+        if ~isnan(x)
+            % Calcolo la distanza tra la lettura x del sensore e
+            % l'observation predetta dalla particle tramite equazioni di
+            % misura. A valore aggiungo una camponente gaussiana centrata
+            % in 0 con varianza ALPHA. Lo scopo è effettuare sampling da
+            % una distribuzione di probabilità di DISTANZA di una particle
+            % dalla osservazione reale. La componente di noise aggiunge
+            % robustezza all'approccio.
             
-         end
-        i = i+1;
+            x_prob = norm(x - mu) + randn * alpha; 
+            % Restituisco la distanza MINORE tra observation e i valori di
+            % misura del sensore
+            prob = min(x_prob, prob); 
+        end
     end
     
 
@@ -240,11 +241,11 @@ function prediction=execute_prediction(particle,odometry,base)
     theta = particle(3);
     ssx = odometry(1);
     sdx = odometry(2);
-    if ssx == sdx
+    if ssx == sdx % Eq. stato nel caso in cui il robot si muova in avanti
         dx = x + ssx*cos(theta);
         dy = y - ssx*sin(theta);
         dt = theta;
-    else
+    else % Eq. stato nel caso in cui il robot viri
             r = base * sdx / (ssx - sdx);
             a = (ssx - sdx) / base;
             dx = x - sin(theta) * (base / 2 + r - cos(a) * (base/2 + r)) + ...
@@ -256,13 +257,17 @@ function prediction=execute_prediction(particle,odometry,base)
             dt = theta + a;
 
     end
-    prediction = [dx; dy; dt] + [randn*0.01; randn*0.01; randn  * pi /10];
+    % Ho notato che il filtro è più sensibile al noise su theta
+    % (ovviamente, dall'orientamento del robot dipende la direzione del
+    % movimento successivo). Ho effettuato delle prove per ricavare i
+    % valori "ottimali" di noise sulle tre componenti [0.1 0.1 .3]
+    prediction = [dx; dy; dt] + [randn*0.01; randn*0.01; randn  * 0.3];
 end
     
 function show_particles(particle_set)
 % Do not edit this function 
         figure(1);
-        tclf
+        clf
         hold on
         plot(particle_set([1],:),particle_set([2],:),'k*')
         arrow=0.5;
@@ -277,33 +282,22 @@ function simulated_data = read_input_file(filename)
     
 end
 
-function [index] = roulette_wheel(weights)
-    [sorted_weights, id] = sort(weights);
-    sum_w = sum(weights);
-    p = sorted_weights / sum_w;
-    r = rand;
-    i = 1;
-    while r>0
-       r = r - p(i);
-       i = i +1;
-    end
-    index = id(i-1);
-end
 
-function idxs = multinomial_sampling(weights)
-    Ns = size(weights, 2);
-    idxs = randsample(1:Ns, Ns, true, weights);
+function inds = resample_wheel(weights)
+    tot_particles = size(weights,2);
+    inds = zeros(size(weights));
+ 
+    rand_value = rand(1) / tot_particles;
+    rand_weight = weights(1);
+    index = 1;
     
-end
-function particle_index = resample_index(weights)
-    total_weight = sum(weights);
-    sample = rand *total_weight;
-    w_index = 1;
-    for w = 1:length(weights)
-        if sample <= sum(weights(1:w))
-            w_index = w;
-            break;
+    for m = 1:tot_particles
+        check = rand_value + (m-1) / tot_particles;
+        while check > rand_weight 
+            index = index + 1;
+            rand_weight = rand_weight + weights(index); % Incrementa random_weight
         end
+        inds(m) = index; % Termina assegnando l'indice index per la particle m
     end
-    particle_index = w_index;
+    
 end
